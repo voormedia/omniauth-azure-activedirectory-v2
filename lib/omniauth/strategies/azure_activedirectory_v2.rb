@@ -9,6 +9,7 @@ module OmniAuth
 
       option :name, 'azure_activedirectory_v2'
       option :tenant_provider, nil
+      option :authorized_emails, []  # Add option for authorized external emails
 
       DEFAULT_SCOPE = 'openid profile email'
 
@@ -94,6 +95,7 @@ module OmniAuth
       # Merge the two, allowing the expanded auth token data to overwrite the ID
       # token data if keys collide, and use this as raw info.
       #
+
       def raw_info
         if @raw_info.nil?
           id_token_data = begin
@@ -112,6 +114,26 @@ module OmniAuth
         end
 
         @raw_info
+      end
+
+      # Custom method to verify authorized domains or emails
+      def verify_user
+        email = raw_info['email'] || raw_info['upn']
+        domain = email.split('@').last
+
+        if options.authorized_emails.include?(email)
+          true
+        else
+          raise CallbackError.new(:invalid_email, 'Invalid Email Domain or Email Not Authorized')
+        end
+      end
+
+      # Overriding callback phase to include custom verification
+      def callback_phase
+        super
+        verify_user
+      rescue CallbackError => e
+        fail!(e.message, e)
       end
     end
   end
